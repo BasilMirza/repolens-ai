@@ -26,7 +26,7 @@ def _get_json(url: str) -> Any:
         url,
         headers={
             "Accept": "application/vnd.github+json",
-            "User-Agent": "RepoLens-AI"
+            "User-Agent": "RepoLens-AI",
         },
         timeout=20,
     )
@@ -119,11 +119,34 @@ def detect_stack(languages: dict[str, int], contents: list[dict[str, Any]], read
             stack.add(tech)
 
     preferred_order = [
-        "TypeScript", "JavaScript", "Python", "Go", "Java", "Rust", "PHP", "Ruby",
-        "React", "Next.js", "Node.js", "Express", "Django", "FastAPI", "NestJS",
-        "PostgreSQL", "MySQL", "MongoDB", "Redis",
-        "Docker", "Docker Compose", "Kubernetes", "GitHub Actions", "Tailwind CSS",
-        "Prisma", "TensorFlow", "PyTorch", "Vite"
+        "TypeScript",
+        "JavaScript",
+        "Python",
+        "Go",
+        "Java",
+        "Rust",
+        "PHP",
+        "Ruby",
+        "React",
+        "Next.js",
+        "Node.js",
+        "Express",
+        "Django",
+        "FastAPI",
+        "NestJS",
+        "PostgreSQL",
+        "MySQL",
+        "MongoDB",
+        "Redis",
+        "Docker",
+        "Docker Compose",
+        "Kubernetes",
+        "GitHub Actions",
+        "Tailwind CSS",
+        "Prisma",
+        "TensorFlow",
+        "PyTorch",
+        "Vite",
     ]
 
     ordered = [item for item in preferred_order if item in stack]
@@ -136,38 +159,79 @@ def summarize_architecture(contents: list[dict[str, Any]], stack: list[str], rea
     bullets = []
 
     if {"frontend", "backend"}.issubset(names) or {"client", "server"}.issubset(names):
-        bullets.append("The repository appears to separate frontend and backend concerns into distinct application layers.")
+        bullets.append(
+            "The repository appears to separate frontend and backend concerns into distinct application layers."
+        )
     elif "src" in names:
-        bullets.append("The repository appears to follow a source-centric structure with implementation code organized under a src directory.")
+        bullets.append(
+            "The repository appears to follow a source-centric structure with implementation code organized under a src directory."
+        )
     else:
-        bullets.append("The repository appears to use a relatively flat top-level structure with core implementation files and configuration at the root.")
+        bullets.append(
+            "The repository appears to use a relatively flat top-level structure with core implementation files and configuration at the root."
+        )
 
     if "Docker" in stack:
-        bullets.append("Containerization is present, suggesting support for reproducible local development or deployment workflows.")
+        bullets.append(
+            "Containerization is present, suggesting support for reproducible local development or deployment workflows."
+        )
 
     if "GitHub Actions" in stack or ".github" in names:
-        bullets.append("CI/CD automation signals are present through GitHub workflow configuration.")
+        bullets.append(
+            "CI/CD automation signals are present through GitHub workflow configuration."
+        )
 
     if any(db in stack for db in ["PostgreSQL", "MySQL", "MongoDB", "Redis"]):
-        bullets.append("The project appears to include persistent storage or caching infrastructure in its architecture.")
+        bullets.append(
+            "The project appears to include persistent storage or caching infrastructure in its architecture."
+        )
 
     if any(api in readme_text.lower() for api in ["api", "rest", "graphql"]):
-        bullets.append("The documentation suggests an API-driven architecture for data exchange or service integration.")
+        bullets.append(
+            "The documentation suggests an API-driven architecture for data exchange or service integration."
+        )
 
     return " ".join(bullets[:3])
 
 
 def summarize_repo(meta: dict[str, Any], stack: list[str], readme_text: str) -> str:
-    description = meta.get("description") or "No description provided."
-    stack_text = ", ".join(stack[:5]) if stack else "multiple technologies"
-    return (
-        f"{meta.get('full_name')} is a public GitHub repository. "
-        f"{description} "
-        f"Based on repository metadata, file structure, and documentation, it appears to use {stack_text}."
-    )
+    full_name = meta.get("full_name", "This repository")
+    description = (meta.get("description") or "").strip()
+    stars = int(meta.get("stargazers_count", 0))
+    forks = int(meta.get("forks_count", 0))
+
+    stack_text = ", ".join(stack[:4]) if stack else "multiple technologies"
+    readme_lower = readme_text.lower()
+
+    summary_parts = []
+
+    if description:
+        summary_parts.append(f"{full_name} is a public GitHub repository. {description}")
+    else:
+        summary_parts.append(f"{full_name} is a public GitHub repository with no explicit GitHub description provided.")
+
+    if stack:
+        summary_parts.append(f"The detected stack suggests the project is built with {stack_text}.")
+
+    if {"frontend", "backend"}.issubset({item.strip().lower() for item in readme_text.split()}):
+        summary_parts.append("The repository likely follows a full-stack structure with separate frontend and backend concerns.")
+    elif "next.js" in readme_lower or "react" in readme_lower:
+        summary_parts.append("The repository appears to include a modern frontend application focused on component-based development.")
+    elif "fastapi" in readme_lower or "django" in readme_lower or "express" in readme_lower:
+        summary_parts.append("The repository appears to include backend or API-oriented application logic.")
+
+    if stars > 0 or forks > 0:
+        summary_parts.append(f"It has {stars} stars and {forks} forks, indicating some level of public visibility and reuse.")
+
+    return " ".join(summary_parts[:4])
 
 
-def compute_quality_score(meta: dict[str, Any], contents: list[dict[str, Any]], readme_text: str, stack: list[str]) -> tuple[int, list[str], list[str]]:
+def compute_quality_score(
+    meta: dict[str, Any],
+    contents: list[dict[str, Any]],
+    readme_text: str,
+    stack: list[str],
+) -> tuple[int, list[str], list[str]]:
     names = {item.get("name", "").lower() for item in contents}
     score = 45
     signals = []
@@ -206,7 +270,9 @@ def compute_quality_score(meta: dict[str, Any], contents: list[dict[str, Any]], 
     if not meta.get("description"):
         suggestions.append("Add a concise repository description to make the project easier to understand at a glance.")
 
-    if not any(db in stack for db in ["PostgreSQL", "MySQL", "MongoDB", "Redis"]) and any(x in stack for x in ["Node.js", "FastAPI", "Django"]):
+    if not any(db in stack for db in ["PostgreSQL", "MySQL", "MongoDB", "Redis"]) and any(
+        x in stack for x in ["Node.js", "FastAPI", "Django"]
+    ):
         suggestions.append("Document persistence choices or database usage if the application includes backend services.")
 
     if len(stack) < 2:
