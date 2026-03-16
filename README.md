@@ -58,7 +58,6 @@ It is designed to help developers quickly understand unfamiliar repositories, de
 
 ## Project Structure
 
-```text
 repolens-ai
 │
 ├── backend
